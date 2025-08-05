@@ -36,6 +36,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <div class="auth-container">
         <div class="auth-card">
             <h1 class="auth-title">Connexion à FindMyDreamHome</h1>
+            <?php if ($success): ?>
+                <div class="success-message"><?php echo htmlspecialchars($success); ?></div>
+            <?php endif; ?>
             
     <form class="auth-form" method="POST" id="loginForm" novalidate>
         <div class="form-group">

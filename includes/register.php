@@ -36,8 +36,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
-// Inclure le header
-include 'header.php';
 ?>
 
 <main class="auth-main">
@@ -84,7 +82,7 @@ include 'header.php';
             </form>
             
             <div class="auth-link">
-                <p>Déjà inscrit ? <a href="login.php">Connectez-vous</a></p>
+                <p>Déjà inscrit ? <a href="?page=login">Connectez-vous</a></p>
             </div>
         </div>
     </div>
