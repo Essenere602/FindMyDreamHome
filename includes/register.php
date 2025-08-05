@@ -26,7 +26,7 @@
             </form>
             
             <div class="auth-link">
-                <p>Déjà inscrit ? <a href="login.php">Connectez-vous</a></p>
+                <p>Déjà inscrit ? <a href="?page=login">Connectez-vous</a></p>
             </div>
         </div>
     </div>

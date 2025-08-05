@@ -20,7 +20,7 @@
             </form>
             
             <div class="auth-link">
-                <p>Pas encore de compte ? <a href="register.php">Inscrivez-vous</a></p>
+                <p>Pas encore de compte ? <a href="?page=register">Inscrivez-vous</a></p>
             </div>
         </div>
     </div>
