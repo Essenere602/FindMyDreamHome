@@ -6,6 +6,7 @@
     <title>Find My Dream Home</title>
     <link rel="stylesheet" href="assets/css/style.css">
     <link rel="stylesheet" href="assets/css/register.css">
+    <link rel="stylesheet" href="assets/css/login.css">
 </head>
 <body>
     <!-- Barre de navigation -->
