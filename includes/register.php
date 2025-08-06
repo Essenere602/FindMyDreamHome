@@ -2,6 +2,9 @@
 // Traitement du formulaire d'inscription
 $errors = [];
 $success = '';
+$email = '';
+$password = '';
+$confirmPassword = '';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $email = trim($_POST['email'] ?? '');
@@ -29,28 +32,27 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     
     // Si pas d'erreurs, simulation d'inscription réussie
     if (empty($errors)) {
-        $success = 'Inscription réussie ! (simulation)';
-        // Ici vous pourrez ajouter la logique d'insertion en base de données
-        // Réinitialiser les champs après succès
-        $email = $password = $confirmPassword = '';
+        // Simuler un utilisateur inscrit et connecté automatiquement
+        $_SESSION['user_logged_in'] = true;
+        $_SESSION['user_email'] = $email;
+        $_SESSION['user_id'] = 2; // ID simulé différent pour l'inscription
+        
+        // Redirection immédiate vers la page principale
+        header('Location: ?page=main');
+        exit();
     }
 }
-
 ?>
 
 <main class="auth-main">
     <div class="auth-container">
         <div class="auth-card">
-            <h1 class="auth-title">Inscription</h1>
-            
-            <?php if ($success): ?>
-                <div class="success-message"><?php echo htmlspecialchars($success); ?></div>
-            <?php endif; ?>
+            <h1 class="auth-title">Créer un compte sur FindMyDreamHome</h1>
             
             <form class="auth-form" method="POST" id="registerForm" novalidate>
                 <div class="form-group">
                     <label for="email" class="form-label">Email</label>
-                    <input type="email" id="email" name="email" class="form-input" value="<?php echo htmlspecialchars($email ?? ''); ?>" required>
+                    <input type="email" id="email" name="email" class="form-input <?php echo isset($errors['email']) ? 'error' : ''; ?>" value="<?php echo htmlspecialchars($email); ?>" required>
                     <?php if (isset($errors['email'])): ?>
                         <span class="error-message"><?php echo htmlspecialchars($errors['email']); ?></span>
                     <?php else: ?>
@@ -60,7 +62,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 
                 <div class="form-group">
                     <label for="password" class="form-label">Mot de passe</label>
-                    <input type="password" id="password" name="password" class="form-input" value="<?php echo htmlspecialchars($password ?? ''); ?>" required>
+                    <input type="password" id="password" name="password" class="form-input <?php echo isset($errors['password']) ? 'error' : ''; ?>" value="<?php echo htmlspecialchars($password); ?>" required>
                     <?php if (isset($errors['password'])): ?>
                         <span class="error-message"><?php echo htmlspecialchars($errors['password']); ?></span>
                     <?php else: ?>
@@ -70,7 +72,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 
                 <div class="form-group">
                     <label for="confirmPassword" class="form-label">Confirmer le mot de passe</label>
-                    <input type="password" id="confirmPassword" name="confirmPassword" class="form-input" value="<?php echo htmlspecialchars($confirmPassword ?? ''); ?>" required>
+                    <input type="password" id="confirmPassword" name="confirmPassword" class="form-input <?php echo isset($errors['confirmPassword']) ? 'error' : ''; ?>" value="<?php echo htmlspecialchars($confirmPassword); ?>" required>
                     <?php if (isset($errors['confirmPassword'])): ?>
                         <span class="error-message"><?php echo htmlspecialchars($errors['confirmPassword']); ?></span>
                     <?php else: ?>

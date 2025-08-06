@@ -1,6 +1,8 @@
 <?php
 $errors = [];
 $success = '';
+$email = '';
+$password = '';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $email = trim($_POST['email'] ?? '');
@@ -21,48 +23,46 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     
     // Simulation connexion réussie
     if (empty($errors)) {
-        $success = "Connexion réussie ! (simulation)";
-        $email = $password = '';
+        // Simuler un utilisateur connecté en session
+        $_SESSION['user_logged_in'] = true;
+        $_SESSION['user_email'] = $email;
+        $_SESSION['user_id'] = 1; // ID simulé
+        
+        // Redirection immédiate vers la page principale
+        header('Location: ?page=main');
+        exit();
     }
 }
-
 ?>
-
-<?php if ($success): ?>
-    <div class="success-message"><?php echo htmlspecialchars($success); ?></div>
-<?php endif; ?>
 
 <main class="auth-main">
     <div class="auth-container">
         <div class="auth-card">
             <h1 class="auth-title">Connexion à FindMyDreamHome</h1>
-            <?php if ($success): ?>
-                <div class="success-message"><?php echo htmlspecialchars($success); ?></div>
-            <?php endif; ?>
             
-    <form class="auth-form" method="POST" id="loginForm" novalidate>
-        <div class="form-group">
-            <label for="email" class="form-label">Email</label>
-            <input type="email" id="email" name="email" class="form-input" value="<?php echo htmlspecialchars($email ?? ''); ?>" required>
-            <?php if (isset($errors['email'])): ?>
-                <span class="error-message"><?php echo htmlspecialchars($errors['email']); ?></span>
-            <?php else: ?>
-                <span class="error-message" id="emailError"></span>
-            <?php endif; ?>
-        </div>
+            <form class="auth-form" method="POST" id="loginForm" novalidate>
+                <div class="form-group">
+                    <label for="email" class="form-label">Email</label>
+                    <input type="email" id="email" name="email" class="form-input <?php echo isset($errors['email']) ? 'error' : ''; ?>" value="<?php echo htmlspecialchars($email); ?>" required>
+                    <?php if (isset($errors['email'])): ?>
+                        <span class="error-message"><?php echo htmlspecialchars($errors['email']); ?></span>
+                    <?php else: ?>
+                        <span class="error-message" id="emailError"></span>
+                    <?php endif; ?>
+                </div>
 
-        <div class="form-group">
-            <label for="password" class="form-label">Mot de passe</label>
-            <input type="password" id="password" name="password" class="form-input" required>
-            <?php if (isset($errors['password'])): ?>
-                <span class="error-message"><?php echo htmlspecialchars($errors['password']); ?></span>
-            <?php else: ?>
-                <span class="error-message" id="passwordError"></span>
-            <?php endif; ?>
-        </div>
+                <div class="form-group">
+                    <label for="password" class="form-label">Mot de passe</label>
+                    <input type="password" id="password" name="password" class="form-input <?php echo isset($errors['password']) ? 'error' : ''; ?>" required>
+                    <?php if (isset($errors['password'])): ?>
+                        <span class="error-message"><?php echo htmlspecialchars($errors['password']); ?></span>
+                    <?php else: ?>
+                        <span class="error-message" id="passwordError"></span>
+                    <?php endif; ?>
+                </div>
 
-        <button type="submit" class="auth-btn">Se connecter</button>
-    </form>
+                <button type="submit" class="auth-btn">Se connecter</button>
+            </form>
             
             <div class="auth-link">
                 <p>Pas encore de compte ? <a href="?page=register">Inscrivez-vous</a></p>

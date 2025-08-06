@@ -1,6 +1,4 @@
 document.getElementById('loginForm').addEventListener('submit', function(e) {
-    e.preventDefault();
-    
     // Réinitialiser les messages d'erreur
     document.getElementById('emailError').textContent = '';
     document.getElementById('passwordError').textContent = '';
@@ -23,12 +21,15 @@ document.getElementById('loginForm').addEventListener('submit', function(e) {
     if (!password) {
         document.getElementById('passwordError').textContent = 'Le mot de passe est requis';
         hasError = true;
+    } else if (password.length < 6) {
+        document.getElementById('passwordError').textContent = 'Le mot de passe doit contenir au moins 6 caractères';
+        hasError = true;
     }
     
-    if (!hasError) {
-        // Ici, vous pourrez ajouter la logique de connexion plus tard
-        alert('Connexion réussie ! (simulation)');
+    if (hasError) {
+        e.preventDefault();
     }
+    // Si pas d'erreur, le formulaire se soumet normalement vers PHP
 });
 
 function isValidEmail(email) {

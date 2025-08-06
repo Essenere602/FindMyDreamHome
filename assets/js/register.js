@@ -1,6 +1,4 @@
 document.getElementById('registerForm').addEventListener('submit', function(e) {
-    e.preventDefault();
-    
     // Réinitialiser les messages d'erreur
     document.getElementById('emailError').textContent = '';
     document.getElementById('passwordError').textContent = '';
@@ -39,10 +37,10 @@ document.getElementById('registerForm').addEventListener('submit', function(e) {
         hasError = true;
     }
     
-    if (!hasError) {
-        // Ici, vous pourrez ajouter la logique d'inscription plus tard
-        alert('Inscription réussie ! (simulation)');
+    if (hasError) {
+        e.preventDefault();
     }
+    // Si pas d'erreur, le formulaire se soumet normalement vers PHP
 });
 
 function isValidEmail(email) {
