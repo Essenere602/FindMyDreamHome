@@ -1,5 +1,4 @@
 <?php
-// Traitement du formulaire d'inscription
 $errors = [];
 $success = '';
 $email = '';
@@ -30,19 +29,38 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $errors['confirmPassword'] = 'Les mots de passe ne correspondent pas';
     }
     
-    // Si pas d'erreurs, simulation d'inscription réussie
-    if (empty($errors)) {
-        // Simuler un utilisateur inscrit et connecté automatiquement
-        $_SESSION['user_logged_in'] = true;
-        $_SESSION['user_email'] = $email;
-        $_SESSION['user_id'] = 2; // ID simulé différent pour l'inscription
+// Dans la partie d'inscription
+if (empty($errors)) {
+    try {
+        // Vérifier si l'email existe déjà
+        $stmt = $pdo->prepare("SELECT id FROM user WHERE email = ?");
+        $stmt->execute([$email]);
         
-        // Redirection immédiate vers la page principale
-        header('Location: ?page=main');
-        exit();
+        if ($stmt->fetch()) {
+            $errors['email'] = 'Cet email est déjà utilisé';
+        } else {
+            // Hacher le mot de passe
+            $hashedPassword = password_hash($password, PASSWORD_DEFAULT);
+            
+            // Insérer le nouvel utilisateur
+            $stmt = $pdo->prepare("INSERT INTO user (email, password) VALUES (?, ?)");
+            $stmt->execute([$email, $hashedPassword]);
+            
+            // Connecter l'utilisateur directement
+            $_SESSION['user_logged_in'] = true;
+            $_SESSION['user_email'] = $email;
+            $_SESSION['user_id'] = $pdo->lastInsertId();
+            
+            header('Location: ?page=main');
+            exit();
+        }
+    } catch (PDOException $e) {
+        $errors['general'] = "Erreur lors de l'inscription";
+        }
     }
 }
 ?>
+
 
 <main class="auth-main">
     <div class="auth-container">

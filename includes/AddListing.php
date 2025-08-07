@@ -17,14 +17,23 @@ $formData = [
     'property_type' => ''
 ];
 
+// Récupérer les types depuis la base de données
+try {
+    $propertyTypes = $pdo->query("SELECT * FROM propertyType")->fetchAll();
+    $transactionTypes = $pdo->query("SELECT * FROM transactionType")->fetchAll();
+} catch (PDOException $e) {
+    $errors['general'] = "Erreur lors du chargement des types";
+}
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $formData['image'] = trim($_POST['image'] ?? '');
-    $formData['titre'] = trim($_POST['titre'] ?? '');
-    $formData['prix'] = trim($_POST['prix'] ?? '');
-    $formData['ville'] = trim($_POST['ville'] ?? '');
-    $formData['description'] = trim($_POST['description'] ?? '');
-    $formData['transaction_type'] = $_POST['transaction_type'] ?? '';
-    $formData['property_type'] = $_POST['property_type'] ?? '';
+    // Nettoyage des données avec des filtres modernes
+    $formData['image'] = trim(filter_input(INPUT_POST, 'image', FILTER_SANITIZE_URL));
+    $formData['titre'] = trim(filter_input(INPUT_POST, 'titre', FILTER_UNSAFE_RAW, FILTER_FLAG_STRIP_LOW));
+    $formData['prix'] = trim(filter_input(INPUT_POST, 'prix', FILTER_SANITIZE_NUMBER_INT));
+    $formData['ville'] = trim(filter_input(INPUT_POST, 'ville', FILTER_UNSAFE_RAW, FILTER_FLAG_STRIP_LOW));
+    $formData['description'] = trim(filter_input(INPUT_POST, 'description', FILTER_UNSAFE_RAW, FILTER_FLAG_STRIP_LOW));
+    $formData['transaction_type'] = filter_input(INPUT_POST, 'transaction_type', FILTER_SANITIZE_NUMBER_INT);
+    $formData['property_type'] = filter_input(INPUT_POST, 'property_type', FILTER_SANITIZE_NUMBER_INT);
     
     // Validation côté serveur
     if (empty($formData['image'])) {
@@ -41,6 +50,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     
     if (empty($formData['prix'])) {
         $errors['prix'] = 'Le prix est requis';
+    } elseif (!is_numeric($formData['prix']) || $formData['prix'] <= 0) {
+        $errors['prix'] = 'Le prix doit être un nombre valide supérieur à 0';
     }
     
     if (empty($formData['ville'])) {
@@ -61,36 +72,48 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $errors['property_type'] = 'Le type de bien est requis';
     }
     
-    // Si pas d'erreurs, simulation d'ajout réussi
     if (empty($errors)) {
-        $success = 'Annonce ajoutée avec succès ! Votre annonce sera visible après validation.';
-        
-        // Simuler l'ajout dans les données (ici on pourrait l'ajouter au tableau en session)
-        $newListing = [
-            'image' => $formData['image'],
-            'titre' => $formData['titre'],
-            'prix' => $formData['prix'],
-            'localisation' => $formData['ville'] . ', France',
-            'description' => $formData['description'],
-            'type' => $formData['transaction_type']
-        ];
-        
-        // Ajouter à la session pour simulation
-        if (!isset($_SESSION['user_listings'])) {
-            $_SESSION['user_listings'] = [];
+        try {
+            // Commencer une transaction
+            $pdo->beginTransaction();
+            
+            // Insérer la nouvelle annonce
+            $stmt = $pdo->prepare("
+                INSERT INTO listing 
+                (title, description, price, city, image_url, property_type_id, transaction_type_id, user_id, created_at, updated_at) 
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())
+            ");
+            $stmt->execute([
+                $formData['titre'],
+                $formData['description'],
+                $formData['prix'],
+                $formData['ville'],
+                $formData['image'],
+                $formData['property_type'],
+                $formData['transaction_type'],
+                $_SESSION['user_id']
+            ]);
+            
+            // Valider la transaction
+            $pdo->commit();
+            
+            $success = 'Annonce ajoutée avec succès ! Votre annonce sera visible après validation.';
+            
+            // Réinitialiser le formulaire
+            $formData = [
+                'image' => '',
+                'titre' => '',
+                'prix' => '',
+                'ville' => '',
+                'description' => '',
+                'transaction_type' => '',
+                'property_type' => ''
+            ];
+        } catch (PDOException $e) {
+            // Annuler la transaction en cas d'erreur
+            $pdo->rollBack();
+            $errors['general'] = "Erreur lors de l'ajout de l'annonce : " . $e->getMessage();
         }
-        $_SESSION['user_listings'][] = $newListing;
-        
-        // Réinitialiser le formulaire
-        $formData = [
-            'image' => '',
-            'titre' => '',
-            'prix' => '',
-            'ville' => '',
-            'description' => '',
-            'transaction_type' => '',
-            'property_type' => ''
-        ];
     }
 }
 ?>
@@ -99,6 +122,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <div class="auth-container" style="max-width: 600px;">
         <div class="auth-card">
             <h1 class="auth-title">Ajouter une nouvelle annonce</h1>
+            
+            <?php if (!empty($errors['general'])): ?>
+                <div class="error-message" style="background-color: #f8d7da; color: #721c24; padding: 10px; border-radius: 5px; margin-bottom: 20px;">
+                    <?php echo htmlspecialchars($errors['general']); ?>
+                </div>
+            <?php endif; ?>
             
             <?php if ($success): ?>
                 <div class="success-message" style="background-color: #d4edda; color: #155724; padding: 10px; border-radius: 5px; margin-bottom: 20px;">
@@ -133,9 +162,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 
                 <div class="form-group">
                     <label for="prix" class="form-label">Prix</label>
-                    <input type="text" id="prix" name="prix" class="form-input <?php echo isset($errors['prix']) ? 'error' : ''; ?>" 
+                    <input type="number" id="prix" name="prix" class="form-input <?php echo isset($errors['prix']) ? 'error' : ''; ?>" 
                            value="<?php echo htmlspecialchars($formData['prix']); ?>" 
-                           placeholder="Ex: 250,000€ ou 1,200€ /month" required>
+                           placeholder="Ex: 250000" min="1" step="1" required>
                     <?php if (isset($errors['prix'])): ?>
                         <span class="error-message"><?php echo htmlspecialchars($errors['prix']); ?></span>
                     <?php else: ?>
@@ -170,8 +199,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     <label for="transaction_type" class="form-label">Type de transaction</label>
                     <select id="transaction_type" name="transaction_type" class="form-input <?php echo isset($errors['transaction_type']) ? 'error' : ''; ?>" required>
                         <option value="">Sélectionner...</option>
-                        <option value="Rent" <?php echo $formData['transaction_type'] === 'Rent' ? 'selected' : ''; ?>>Location (Rent)</option>
-                        <option value="Sale" <?php echo $formData['transaction_type'] === 'Sale' ? 'selected' : ''; ?>>Vente (Sale)</option>
+                        <?php foreach ($transactionTypes as $type): ?>
+                            <option value="<?= $type['id'] ?>" <?= $formData['transaction_type'] == $type['id'] ? 'selected' : '' ?>>
+                                <?= htmlspecialchars($type['name']) ?>
+                            </option>
+                        <?php endforeach; ?>
                     </select>
                     <?php if (isset($errors['transaction_type'])): ?>
                         <span class="error-message"><?php echo htmlspecialchars($errors['transaction_type']); ?></span>
@@ -184,8 +216,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     <label for="property_type" class="form-label">Type de bien</label>
                     <select id="property_type" name="property_type" class="form-input <?php echo isset($errors['property_type']) ? 'error' : ''; ?>" required>
                         <option value="">Sélectionner...</option>
-                        <option value="House" <?php echo $formData['property_type'] === 'House' ? 'selected' : ''; ?>>Maison (House)</option>
-                        <option value="Apartment" <?php echo $formData['property_type'] === 'Apartment' ? 'selected' : ''; ?>>Appartement (Apartment)</option>
+                        <?php foreach ($propertyTypes as $type): ?>
+                            <option value="<?= $type['id'] ?>" <?= $formData['property_type'] == $type['id'] ? 'selected' : '' ?>>
+                                <?= htmlspecialchars($type['name']) ?>
+                            </option>
+                        <?php endforeach; ?>
                     </select>
                     <?php if (isset($errors['property_type'])): ?>
                         <span class="error-message"><?php echo htmlspecialchars($errors['property_type']); ?></span>

@@ -1,9 +1,11 @@
 <?php
 // Démarrer la session
 session_start();
+// Inclure connexion à la base données
+require_once 'config/database.php';
 
 // Inclure les données
-require_once 'data/data.php';
+// require_once 'data/data.php';
 
 // Inclure le header
 include 'includes/header.php';

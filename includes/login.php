@@ -17,23 +17,32 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     
     if (empty($password)) {
         $errors['password'] = "Le mot de passe est requis";
-    } elseif (strlen($password) < 6) {
-        $errors['password'] = "Le mot de passe doit contenir au moins 6 caractères";
     }
     
-    // Simulation connexion réussie
-    if (empty($errors)) {
-        // Simuler un utilisateur connecté en session
-        $_SESSION['user_logged_in'] = true;
-        $_SESSION['user_email'] = $email;
-        $_SESSION['user_id'] = 1; // ID simulé
+// Dans la partie de vérification des identifiants
+if (empty($errors)) {
+    try {
+        $stmt = $pdo->prepare("SELECT * FROM user WHERE email = ?");
+        $stmt->execute([$email]);
+        $user = $stmt->fetch();
         
-        // Redirection immédiate vers la page principale
-        header('Location: ?page=main');
-        exit();
-    }
+        if ($user && password_verify($password, $user['password'])) {
+            $_SESSION['user_logged_in'] = true;
+            $_SESSION['user_email'] = $user['email'];
+            $_SESSION['user_id'] = $user['id'];
+            
+            header('Location: ?page=main');
+            exit();
+        } else {
+            $errors['general'] = "Identifiants incorrects";
+        }
+    } catch (PDOException $e) {
+        $errors['general'] = "Erreur lors de la connexion";
+        }
+    }     
 }
 ?>
+
 
 <main class="auth-main">
     <div class="auth-container">
