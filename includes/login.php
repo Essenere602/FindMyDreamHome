@@ -19,35 +19,41 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $errors['password'] = "Le mot de passe est requis";
     }
     
-// Dans la partie de vérification des identifiants
-if (empty($errors)) {
-    try {
-        $stmt = $pdo->prepare("SELECT * FROM user WHERE email = ?");
-        $stmt->execute([$email]);
-        $user = $stmt->fetch();
-        
-        if ($user && password_verify($password, $user['password'])) {
-            $_SESSION['user_logged_in'] = true;
-            $_SESSION['user_email'] = $user['email'];
-            $_SESSION['user_id'] = $user['id'];
+    // Dans la partie de vérification des identifiants
+    if (empty($errors)) {
+        try {
+            $stmt = $pdo->prepare("SELECT * FROM user WHERE email = ?");
+            $stmt->execute([$email]);
+            $user = $stmt->fetch();
             
-            header('Location: ?page=main');
-            exit();
-        } else {
-            $errors['general'] = "Identifiants incorrects";
-        }
-    } catch (PDOException $e) {
-        $errors['general'] = "Erreur lors de la connexion";
+            if ($user && password_verify($password, $user['password'])) {
+                $_SESSION['user_logged_in'] = true;
+                $_SESSION['user_email'] = $user['email'];
+                $_SESSION['user_id'] = $user['id'];
+                $_SESSION['user_role'] = $user['role']; // Ajout du rôle en session
+                
+                header('Location: ?page=main');
+                exit();
+            } else {
+                $errors['general'] = "Identifiants incorrects";
+            }
+        } catch (PDOException $e) {
+            $errors['general'] = "Erreur lors de la connexion";
         }
     }     
 }
 ?>
 
-
 <main class="auth-main">
     <div class="auth-container">
         <div class="auth-card">
             <h1 class="auth-title">Connexion à FindMyDreamHome</h1>
+            
+            <?php if (isset($errors['general'])): ?>
+                <div class="error-message" style="background-color: #f8d7da; color: #721c24; padding: 10px; border-radius: 5px; margin-bottom: 20px;">
+                    <?php echo htmlspecialchars($errors['general']); ?>
+                </div>
+            <?php endif; ?>
             
             <form class="auth-form" method="POST" id="loginForm" novalidate>
                 <div class="form-group">

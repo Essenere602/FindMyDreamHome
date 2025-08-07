@@ -75,4 +75,17 @@ VALUES
 ('Appartement moderne 3 pièces', 'Appartement lumineux avec balcon et vue dégagée', 450000, 'Paris 15e', 'https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?w=400&h=300&fit=crop', 2, 1, 1),
 ('Penthouse avec terrasse', 'Magnifique penthouse avec grande terrasse panoramique', 780000, 'Lyon 6e', 'https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?w=400&h=300&fit=crop', 2, 1, 1),
 ('Studio lumineux centre-ville', 'Studio optimisé en plein cœur de la ville', 280000, 'Marseille 1er', 'https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=400&h=300&fit=crop', 2, 1, 1);
- 
+
+-- Ajout du champ role à la table user
+ALTER TABLE user ADD COLUMN role ENUM('user', 'agent', 'admin') NOT NULL DEFAULT 'user';
+
+-- Création de la table favorite
+CREATE TABLE favorite (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    user_id INT NOT NULL,
+    listing_id INT NOT NULL,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES user(id) ON DELETE CASCADE,
+    FOREIGN KEY (listing_id) REFERENCES listing(id) ON DELETE CASCADE,
+    UNIQUE KEY (user_id, listing_id)
+); 

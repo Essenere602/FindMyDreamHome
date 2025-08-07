@@ -5,9 +5,36 @@ if (!isset($_SESSION['user_logged_in']) || $_SESSION['user_logged_in'] !== true)
     exit();
 }
 
-// Vérifier si l'utilisateur a le droit d'ajouter des annonces (agent ou admin uniquement)
-if (!in_array($_SESSION['user_role'], ['agent', 'admin'])) {
-    $_SESSION['error_message'] = "Vous n'avez pas l'autorisation d'ajouter des annonces. Seuls les agents et administrateurs peuvent publier.";
+// Récupérer l'ID de l'annonce
+$listing_id = (int)($_GET['id'] ?? 0);
+
+if ($listing_id <= 0) {
+    $_SESSION['error_message'] = "Annonce introuvable";
+    header('Location: ?page=main');
+    exit();
+}
+
+// Vérifier que l'annonce existe et que l'utilisateur a le droit de la modifier
+try {
+    $stmt = $pdo->prepare("SELECT * FROM listing WHERE id = ?");
+    $stmt->execute([$listing_id]);
+    $listing = $stmt->fetch();
+    
+    if (!$listing) {
+        $_SESSION['error_message'] = "Annonce introuvable";
+        header('Location: ?page=main');
+        exit();
+    }
+    
+    // Vérifier les droits de modification
+    if ($_SESSION['user_role'] !== 'admin' && $listing['user_id'] != $_SESSION['user_id']) {
+        $_SESSION['error_message'] = "Vous n'avez pas l'autorisation de modifier cette annonce";
+        header('Location: ?page=main');
+        exit();
+    }
+    
+} catch (PDOException $e) {
+    $_SESSION['error_message'] = "Erreur lors du chargement de l'annonce";
     header('Location: ?page=main');
     exit();
 }
@@ -15,13 +42,13 @@ if (!in_array($_SESSION['user_role'], ['agent', 'admin'])) {
 $errors = [];
 $success = '';
 $formData = [
-    'image' => '',
-    'titre' => '',
-    'prix' => '',
-    'ville' => '',
-    'description' => '',
-    'transaction_type' => '',
-    'property_type' => ''
+    'image' => $listing['image_url'],
+    'titre' => $listing['title'],
+    'prix' => $listing['price'],
+    'ville' => $listing['city'],
+    'description' => $listing['description'],
+    'transaction_type' => $listing['transaction_type_id'],
+    'property_type' => $listing['property_type_id']
 ];
 
 // Récupérer les types depuis la base de données
@@ -33,7 +60,7 @@ try {
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    // Nettoyage des données avec des filtres modernes
+    // Nettoyage des données
     $formData['image'] = trim(filter_input(INPUT_POST, 'image', FILTER_SANITIZE_URL));
     $formData['titre'] = trim(filter_input(INPUT_POST, 'titre', FILTER_UNSAFE_RAW, FILTER_FLAG_STRIP_LOW));
     $formData['prix'] = trim(filter_input(INPUT_POST, 'prix', FILTER_SANITIZE_NUMBER_INT));
@@ -81,14 +108,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     
     if (empty($errors)) {
         try {
-            // Commencer une transaction
-            $pdo->beginTransaction();
-            
-            // Insérer la nouvelle annonce
+            // Mettre à jour l'annonce
             $stmt = $pdo->prepare("
-                INSERT INTO listing 
-                (title, description, price, city, image_url, property_type_id, transaction_type_id, user_id, created_at, updated_at) 
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())
+                UPDATE listing 
+                SET title = ?, description = ?, price = ?, city = ?, image_url = ?, 
+                    property_type_id = ?, transaction_type_id = ?, updated_at = NOW()
+                WHERE id = ?
             ");
             $stmt->execute([
                 $formData['titre'],
@@ -98,28 +123,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $formData['image'],
                 $formData['property_type'],
                 $formData['transaction_type'],
-                $_SESSION['user_id']
+                $listing_id
             ]);
             
-            // Valider la transaction
-            $pdo->commit();
+            $_SESSION['success_message'] = 'Annonce modifiée avec succès !';
+            header('Location: ?page=main');
+            exit();
             
-            $success = 'Annonce ajoutée avec succès !';
-            
-            // Réinitialiser le formulaire
-            $formData = [
-                'image' => '',
-                'titre' => '',
-                'prix' => '',
-                'ville' => '',
-                'description' => '',
-                'transaction_type' => '',
-                'property_type' => ''
-            ];
         } catch (PDOException $e) {
-            // Annuler la transaction en cas d'erreur
-            $pdo->rollBack();
-            $errors['general'] = "Erreur lors de l'ajout de l'annonce : " . $e->getMessage();
+            $errors['general'] = "Erreur lors de la modification de l'annonce : " . $e->getMessage();
         }
     }
 }
@@ -128,7 +140,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <main class="auth-main">
     <div class="auth-container" style="max-width: 600px;">
         <div class="auth-card">
-            <h1 class="auth-title">Ajouter une nouvelle annonce</h1>
+            <h1 class="auth-title">Modifier l'annonce</h1>
             
             <?php if (!empty($errors['general'])): ?>
                 <div class="error-message" style="background-color: #f8d7da; color: #721c24; padding: 10px; border-radius: 5px; margin-bottom: 20px;">
@@ -136,13 +148,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 </div>
             <?php endif; ?>
             
-            <?php if ($success): ?>
-                <div class="success-message" style="background-color: #d4edda; color: #155724; padding: 10px; border-radius: 5px; margin-bottom: 20px;">
-                    <?php echo htmlspecialchars($success); ?>
-                </div>
-            <?php endif; ?>
-            
-            <form class="auth-form" method="POST" id="addListingForm" novalidate>
+            <form class="auth-form" method="POST" id="editListingForm" novalidate>
                 <div class="form-group">
                     <label for="image" class="form-label">URL de l'image</label>
                     <input type="url" id="image" name="image" class="form-input <?php echo isset($errors['image']) ? 'error' : ''; ?>" 
@@ -236,12 +242,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     <?php endif; ?>
                 </div>
                 
-                <button type="submit" class="auth-btn">Enregistrer l'annonce</button>
+                <div style="display: flex; gap: 10px; justify-content: space-between;">
+                    <button type="submit" class="auth-btn" style="flex: 1;">Sauvegarder les modifications</button>
+                    <a href="?page=main" class="auth-btn" style="flex: 1; background: #6c757d; text-align: center; text-decoration: none; display: flex; align-items: center; justify-content: center;">Annuler</a>
+                </div>
             </form>
-            
-            <div class="auth-link">
-                <p><a href="?page=main">← Retour à l'accueil</a></p>
-            </div>
         </div>
     </div>
 </main>

@@ -17,7 +17,14 @@
             <li><a href="?page=main#houses">Maisons</a></li>
             <li><a href="?page=main#apartments">Appartements</a></li>
             <?php if (isset($_SESSION['user_logged_in']) && $_SESSION['user_logged_in'] === true): ?>
-                <li><a href="?page=add-listing" class="login-btn">Ajouter</a></li>
+                <li><a href="?page=favorites" class="login-btn">Mes Favoris</a></li>
+                <!-- Correction : Limiter l'accès au bouton "Ajouter" aux agents et admins uniquement -->
+                <?php if (in_array($_SESSION['user_role'], ['agent', 'admin'])): ?>
+                    <li><a href="?page=add-listing" class="login-btn">Ajouter</a></li>
+                <?php endif; ?>
+                <?php if ($_SESSION['user_role'] === 'admin'): ?>
+                    <li><a href="?page=admin" class="login-btn">Admin</a></li>
+                <?php endif; ?>
                 <li><a href="?page=logout" class="login-btn">Déconnexion (<?php echo htmlspecialchars($_SESSION['user_email']); ?>)</a></li>
             <?php else: ?>
                 <li><a href="?page=register" class="login-btn">Inscription</a></li>
