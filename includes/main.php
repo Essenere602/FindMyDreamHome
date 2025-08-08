@@ -104,6 +104,7 @@ if (isset($_SESSION['user_logged_in'])) {
                     JOIN user u ON l.user_id = u.id
                     WHERE pt.name = 'House'
                     ORDER BY l.created_at DESC
+                    LIMIT 6
                 ");
                 $stmt->execute();
                 $maisons = $stmt->fetchAll();
@@ -184,6 +185,7 @@ if (isset($_SESSION['user_logged_in'])) {
                     JOIN user u ON l.user_id = u.id
                     WHERE pt.name = 'Apartment'
                     ORDER BY l.created_at DESC
+                    LIMIT 6
                 ");
                 $stmt->execute();
                 $appartements = $stmt->fetchAll();

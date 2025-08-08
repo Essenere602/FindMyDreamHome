@@ -14,8 +14,8 @@
         <div class="logo">FindMyDreamHome</div>
         <ul class="nav-links">
             <li><a href="?page=main">Accueil</a></li>
-            <li><a href="?page=main#houses">Maisons</a></li>
-            <li><a href="?page=main#apartments">Appartements</a></li>
+            <li><a href="?page=houses">Maisons</a></li>
+            <li><a href="?page=apartments">Appartements</a></li>
             <?php if (isset($_SESSION['user_logged_in']) && $_SESSION['user_logged_in'] === true): ?>
                 <li><a href="?page=favorites" class="login-btn">Mes Favoris</a></li>
                 <!-- Correction : Limiter l'accès au bouton "Ajouter" aux agents et admins uniquement -->

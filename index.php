@@ -33,6 +33,12 @@ switch ($page) {
     case 'toggle-favorite':
         include 'includes/ToggleFavorite.php';
         break;
+    case 'houses':
+        include 'includes/Houses.php';
+        break;
+    case 'apartments':
+        include 'includes/Apartments.php';
+        break;
     case 'logout':
         session_destroy();
         header('Location: ?page=main');
