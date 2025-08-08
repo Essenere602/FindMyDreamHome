@@ -144,68 +144,67 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 }
             }
             
-            // Mettre à jour l'annonce
-// Nouveau code de mise à jour optimisée
-$updates = [];
-$params = [];
+        // Mettre à jour l'annonce
+        $updates = [];
+        $params = [];
 
-if ($formData['titre'] !== $listing['title']) {
-    $updates[] = 'title = ?';
-    $params[] = $formData['titre'];
-}
-if ($formData['description'] !== $listing['description']) {
-    $updates[] = 'description = ?';
-    $params[] = $formData['description'];
-}
-if ((int)$formData['prix'] !== (int)$listing['price']) {
-    $updates[] = 'price = ?';
-    $params[] = $formData['prix'];
-}
-if ($formData['ville'] !== $listing['city']) {
-    $updates[] = 'city = ?';
-    $params[] = $formData['ville'];
-}
-if ((int)$formData['property_type'] !== (int)$listing['property_type_id']) {
-    $updates[] = 'property_type_id = ?';
-    $params[] = $formData['property_type'];
-}
-if ((int)$formData['transaction_type'] !== (int)$listing['transaction_type_id']) {
-    $updates[] = 'transaction_type_id = ?';
-    $params[] = $formData['transaction_type'];
-}
-if ($newImagePath) {
-    $updates[] = 'image_url = ?';
-    $params[] = $newImagePath;
-}
-
-if (!empty($updates)) {
-    $updates[] = 'updated_at = NOW()';
-    $sql = "UPDATE listing SET " . implode(', ', $updates) . " WHERE id = ?";
-    $params[] = $listing_id;
-    
-    $stmt = $pdo->prepare($sql);
-    $stmt->execute($params);
-}            
-            // Valider la transaction
-            $pdo->commit();
-            
-            $_SESSION['success_message'] = 'Annonce modifiée avec succès !';
-            header('Location: ?page=main');
-            exit();
-            
-        } catch (Exception $e) {
-            // Annuler la transaction en cas d'erreur
-            $pdo->rollBack();
-            
-            // Supprimer la nouvelle image si elle a été déplacée
-            if (isset($newImagePath) && file_exists($newImagePath)) {
-                unlink($newImagePath);
-            }
-            
-            $errors['general'] = "Erreur lors de la modification de l'annonce : " . $e->getMessage();
+        if ($formData['titre'] !== $listing['title']) {
+            $updates[] = 'title = ?';
+            $params[] = $formData['titre'];
         }
-    }
-}
+        if ($formData['description'] !== $listing['description']) {
+            $updates[] = 'description = ?';
+            $params[] = $formData['description'];
+        }
+        if ((int)$formData['prix'] !== (int)$listing['price']) {
+            $updates[] = 'price = ?';
+            $params[] = $formData['prix'];
+        }
+        if ($formData['ville'] !== $listing['city']) {
+            $updates[] = 'city = ?';
+            $params[] = $formData['ville'];
+        }
+        if ((int)$formData['property_type'] !== (int)$listing['property_type_id']) {
+            $updates[] = 'property_type_id = ?';
+            $params[] = $formData['property_type'];
+        }
+        if ((int)$formData['transaction_type'] !== (int)$listing['transaction_type_id']) {
+            $updates[] = 'transaction_type_id = ?';
+            $params[] = $formData['transaction_type'];
+        }
+        if ($newImagePath) {
+            $updates[] = 'image_url = ?';
+            $params[] = $newImagePath;
+        }
+
+        if (!empty($updates)) {
+            $updates[] = 'updated_at = NOW()';
+            $sql = "UPDATE listing SET " . implode(', ', $updates) . " WHERE id = ?";
+            $params[] = $listing_id;
+            
+            $stmt = $pdo->prepare($sql);
+            $stmt->execute($params);
+        }            
+                    // Valider la transaction
+                    $pdo->commit();
+                    
+                    $_SESSION['success_message'] = 'Annonce modifiée avec succès !';
+                    header('Location: ?page=main');
+                    exit();
+                    
+                } catch (Exception $e) {
+                    // Annuler la transaction en cas d'erreur
+                    $pdo->rollBack();
+                    
+                    // Supprimer la nouvelle image si elle a été déplacée
+                    if (isset($newImagePath) && file_exists($newImagePath)) {
+                        unlink($newImagePath);
+                    }
+                    
+                    $errors['general'] = "Erreur lors de la modification de l'annonce : " . $e->getMessage();
+                }
+            }
+        }
 ?>
 
 <main class="auth-main">
