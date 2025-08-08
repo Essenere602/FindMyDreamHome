@@ -145,41 +145,47 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
             
             // Mettre à jour l'annonce
-            if ($newImagePath) {
-                $stmt = $pdo->prepare("
-                    UPDATE listing 
-                    SET title = ?, description = ?, price = ?, city = ?, image_url = ?, 
-                        property_type_id = ?, transaction_type_id = ?, updated_at = NOW()
-                    WHERE id = ?
-                ");
-                $stmt->execute([
-                    $formData['titre'],
-                    $formData['description'],
-                    $formData['prix'],
-                    $formData['ville'],
-                    $newImagePath,
-                    $formData['property_type'],
-                    $formData['transaction_type'],
-                    $listing_id
-                ]);
-            } else {
-                $stmt = $pdo->prepare("
-                    UPDATE listing 
-                    SET title = ?, description = ?, price = ?, city = ?, 
-                        property_type_id = ?, transaction_type_id = ?, updated_at = NOW()
-                    WHERE id = ?
-                ");
-                $stmt->execute([
-                    $formData['titre'],
-                    $formData['description'],
-                    $formData['prix'],
-                    $formData['ville'],
-                    $formData['property_type'],
-                    $formData['transaction_type'],
-                    $listing_id
-                ]);
-            }
-            
+// Nouveau code de mise à jour optimisée
+$updates = [];
+$params = [];
+
+if ($formData['titre'] !== $listing['title']) {
+    $updates[] = 'title = ?';
+    $params[] = $formData['titre'];
+}
+if ($formData['description'] !== $listing['description']) {
+    $updates[] = 'description = ?';
+    $params[] = $formData['description'];
+}
+if ((int)$formData['prix'] !== (int)$listing['price']) {
+    $updates[] = 'price = ?';
+    $params[] = $formData['prix'];
+}
+if ($formData['ville'] !== $listing['city']) {
+    $updates[] = 'city = ?';
+    $params[] = $formData['ville'];
+}
+if ((int)$formData['property_type'] !== (int)$listing['property_type_id']) {
+    $updates[] = 'property_type_id = ?';
+    $params[] = $formData['property_type'];
+}
+if ((int)$formData['transaction_type'] !== (int)$listing['transaction_type_id']) {
+    $updates[] = 'transaction_type_id = ?';
+    $params[] = $formData['transaction_type'];
+}
+if ($newImagePath) {
+    $updates[] = 'image_url = ?';
+    $params[] = $newImagePath;
+}
+
+if (!empty($updates)) {
+    $updates[] = 'updated_at = NOW()';
+    $sql = "UPDATE listing SET " . implode(', ', $updates) . " WHERE id = ?";
+    $params[] = $listing_id;
+    
+    $stmt = $pdo->prepare($sql);
+    $stmt->execute($params);
+}            
             // Valider la transaction
             $pdo->commit();
             
