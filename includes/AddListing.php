@@ -15,7 +15,6 @@ if (!in_array($_SESSION['user_role'], ['agent', 'admin'])) {
 $errors = [];
 $success = '';
 $formData = [
-    'image' => '',
     'titre' => '',
     'prix' => '',
     'ville' => '',
@@ -34,7 +33,6 @@ try {
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     // Nettoyage des données avec des filtres modernes
-    $formData['image'] = trim(filter_input(INPUT_POST, 'image', FILTER_SANITIZE_URL));
     $formData['titre'] = trim(filter_input(INPUT_POST, 'titre', FILTER_UNSAFE_RAW, FILTER_FLAG_STRIP_LOW));
     $formData['prix'] = trim(filter_input(INPUT_POST, 'prix', FILTER_SANITIZE_NUMBER_INT));
     $formData['ville'] = trim(filter_input(INPUT_POST, 'ville', FILTER_UNSAFE_RAW, FILTER_FLAG_STRIP_LOW));
@@ -43,12 +41,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $formData['property_type'] = filter_input(INPUT_POST, 'property_type', FILTER_SANITIZE_NUMBER_INT);
     
     // Validation côté serveur
-    if (empty($formData['image'])) {
-        $errors['image'] = 'L\'URL de l\'image est requise';
-    } elseif (!filter_var($formData['image'], FILTER_VALIDATE_URL)) {
-        $errors['image'] = 'Veuillez entrer une URL valide pour l\'image';
-    }
-    
     if (empty($formData['titre'])) {
         $errors['titre'] = 'Le titre est requis';
     } elseif (strlen($formData['titre']) < 3) {
@@ -79,46 +71,91 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $errors['property_type'] = 'Le type de bien est requis';
     }
     
+    // Validation de l'image uploadée
+    if (!isset($_FILES['image']) || $_FILES['image']['error'] == UPLOAD_ERR_NO_FILE) {
+        $errors['image'] = 'L\'image est requise';
+    } elseif ($_FILES['image']['error'] != UPLOAD_ERR_OK) {
+        $errors['image'] = 'Erreur lors du téléchargement de l\'image';
+    } else {
+        $imageInfo = getimagesize($_FILES['image']['tmp_name']);
+        if (!$imageInfo) {
+            $errors['image'] = 'Le fichier doit être une image valide';
+        } elseif (!in_array($imageInfo['mime'], ['image/jpeg', 'image/png', 'image/gif', 'image/webp'])) {
+            $errors['image'] = 'Format d\'image non supporté. Utilisez JPG, PNG, GIF ou WebP';
+        } elseif ($_FILES['image']['size'] > 5 * 1024 * 1024) { // 5MB max
+            $errors['image'] = 'L\'image ne doit pas dépasser 5MB';
+        }
+    }
+    
     if (empty($errors)) {
         try {
             // Commencer une transaction
             $pdo->beginTransaction();
             
-            // Insérer la nouvelle annonce
+            // Insérer la nouvelle annonce sans l'image d'abord
             $stmt = $pdo->prepare("
                 INSERT INTO listing 
-                (title, description, price, city, image_url, property_type_id, transaction_type_id, user_id, created_at, updated_at) 
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())
+                (title, description, price, city, property_type_id, transaction_type_id, user_id, created_at, updated_at) 
+                VALUES (?, ?, ?, ?, ?, ?, ?, NOW(), NOW())
             ");
             $stmt->execute([
                 $formData['titre'],
                 $formData['description'],
                 $formData['prix'],
                 $formData['ville'],
-                $formData['image'],
                 $formData['property_type'],
                 $formData['transaction_type'],
                 $_SESSION['user_id']
             ]);
             
-            // Valider la transaction
-            $pdo->commit();
+            // Récupérer l'ID de l'annonce créée
+            $listing_id = $pdo->lastInsertId();
             
-            $success = 'Annonce ajoutée avec succès !';
+            // Traitement de l'image
+            $uploadDir = 'uploads/';
+            if (!is_dir($uploadDir)) {
+                mkdir($uploadDir, 0755, true);
+            }
             
-            // Réinitialiser le formulaire
-            $formData = [
-                'image' => '',
-                'titre' => '',
-                'prix' => '',
-                'ville' => '',
-                'description' => '',
-                'transaction_type' => '',
-                'property_type' => ''
-            ];
-        } catch (PDOException $e) {
+            // Créer le nom du fichier : titre_annonce_ID.extension
+            $imageExtension = pathinfo($_FILES['image']['name'], PATHINFO_EXTENSION);
+            $safeTitre = preg_replace('/[^a-zA-Z0-9_-]/', '_', $formData['titre']);
+            $imageName = $safeTitre . '_' . $listing_id . '.' . strtolower($imageExtension);
+            $imagePath = $uploadDir . $imageName;
+            
+            // Déplacer l'image uploadée
+            if (move_uploaded_file($_FILES['image']['tmp_name'], $imagePath)) {
+                // Mettre à jour l'annonce avec le chemin de l'image
+                $stmt = $pdo->prepare("UPDATE listing SET image_url = ? WHERE id = ?");
+                $stmt->execute([$imagePath, $listing_id]);
+                
+                // Valider la transaction
+                $pdo->commit();
+                
+                $success = 'Annonce ajoutée avec succès !';
+                
+                // Réinitialiser le formulaire
+                $formData = [
+                    'titre' => '',
+                    'prix' => '',
+                    'ville' => '',
+                    'description' => '',
+                    'transaction_type' => '',
+                    'property_type' => ''
+                ];
+            } else {
+                throw new Exception("Erreur lors du déplacement de l'image");
+            }
+            
+        } catch (Exception $e) {
             // Annuler la transaction en cas d'erreur
             $pdo->rollBack();
+            
+            // Supprimer l'image si elle a été déplacée
+            if (isset($imagePath) && file_exists($imagePath)) {
+                unlink($imagePath);
+            }
+            
             $errors['general'] = "Erreur lors de l'ajout de l'annonce : " . $e->getMessage();
         }
     }
@@ -142,12 +179,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 </div>
             <?php endif; ?>
             
-            <form class="auth-form" method="POST" id="addListingForm" novalidate>
+            <form class="auth-form" method="POST" id="addListingForm" enctype="multipart/form-data" novalidate>
                 <div class="form-group">
-                    <label for="image" class="form-label">URL de l'image</label>
-                    <input type="url" id="image" name="image" class="form-input <?php echo isset($errors['image']) ? 'error' : ''; ?>" 
-                           value="<?php echo htmlspecialchars($formData['image']); ?>" 
-                           placeholder="https://example.com/image.jpg" required>
+                    <label for="image" class="form-label">Image de l'annonce</label>
+                    <input type="file" id="image" name="image" class="form-input <?php echo isset($errors['image']) ? 'error' : ''; ?>" 
+                           accept="image/jpeg,image/png,image/gif,image/webp" required>
+                    <small style="color: #666; font-size: 0.85em;">Formats acceptés : JPG, PNG, GIF, WebP (max 5MB)</small>
                     <?php if (isset($errors['image'])): ?>
                         <span class="error-message"><?php echo htmlspecialchars($errors['image']); ?></span>
                     <?php else: ?>

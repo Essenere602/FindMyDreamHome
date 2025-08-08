@@ -8,7 +8,7 @@ document.getElementById('addListingForm').addEventListener('submit', function(e)
     document.getElementById('transactionTypeError').textContent = '';
     document.getElementById('propertyTypeError').textContent = '';
     
-    const image = document.getElementById('image').value.trim();
+    const imageInput = document.getElementById('image');
     const titre = document.getElementById('titre').value.trim();
     const prix = document.getElementById('prix').value.trim();
     const ville = document.getElementById('ville').value.trim();
@@ -19,12 +19,21 @@ document.getElementById('addListingForm').addEventListener('submit', function(e)
     let hasError = false;
     
     // Validation de l'image
-    if (!image) {
-        document.getElementById('imageError').textContent = 'L\'URL de l\'image est requise';
+    if (!imageInput.files || imageInput.files.length === 0) {
+        document.getElementById('imageError').textContent = 'L\'image est requise';
         hasError = true;
-    } else if (!isValidUrl(image)) {
-        document.getElementById('imageError').textContent = 'Veuillez entrer une URL valide pour l\'image';
-        hasError = true;
+    } else {
+        const file = imageInput.files[0];
+        const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+        const maxSize = 5 * 1024 * 1024; // 5MB
+        
+        if (!allowedTypes.includes(file.type)) {
+            document.getElementById('imageError').textContent = 'Format d\'image non supporté. Utilisez JPG, PNG, GIF ou WebP';
+            hasError = true;
+        } else if (file.size > maxSize) {
+            document.getElementById('imageError').textContent = 'L\'image ne doit pas dépasser 5MB';
+            hasError = true;
+        }
     }
     
     // Validation du titre
@@ -74,11 +83,14 @@ document.getElementById('addListingForm').addEventListener('submit', function(e)
     }
 });
 
-function isValidUrl(string) {
-    try {
-        new URL(string);
-        return true;
-    } catch (_) {
-        return false;
+// Prévisualisation de l'image 
+document.getElementById('image').addEventListener('change', function(e) {
+    const file = e.target.files[0];
+    if (file) {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            // pour prévoir prévisualisation
+        };
+        reader.readAsDataURL(file);
     }
-}
+});

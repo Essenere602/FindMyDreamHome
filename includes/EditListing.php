@@ -42,7 +42,6 @@ try {
 $errors = [];
 $success = '';
 $formData = [
-    'image' => $listing['image_url'],
     'titre' => $listing['title'],
     'prix' => $listing['price'],
     'ville' => $listing['city'],
@@ -61,7 +60,6 @@ try {
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     // Nettoyage des données
-    $formData['image'] = trim(filter_input(INPUT_POST, 'image', FILTER_SANITIZE_URL));
     $formData['titre'] = trim(filter_input(INPUT_POST, 'titre', FILTER_UNSAFE_RAW, FILTER_FLAG_STRIP_LOW));
     $formData['prix'] = trim(filter_input(INPUT_POST, 'prix', FILTER_SANITIZE_NUMBER_INT));
     $formData['ville'] = trim(filter_input(INPUT_POST, 'ville', FILTER_UNSAFE_RAW, FILTER_FLAG_STRIP_LOW));
@@ -70,12 +68,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $formData['property_type'] = filter_input(INPUT_POST, 'property_type', FILTER_SANITIZE_NUMBER_INT);
     
     // Validation côté serveur
-    if (empty($formData['image'])) {
-        $errors['image'] = 'L\'URL de l\'image est requise';
-    } elseif (!filter_var($formData['image'], FILTER_VALIDATE_URL)) {
-        $errors['image'] = 'Veuillez entrer une URL valide pour l\'image';
-    }
-    
     if (empty($formData['titre'])) {
         $errors['titre'] = 'Le titre est requis';
     } elseif (strlen($formData['titre']) < 3) {
@@ -106,31 +98,104 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $errors['property_type'] = 'Le type de bien est requis';
     }
     
+    // Validation de l'image uploadée 
+    $newImagePath = null;
+    if (isset($_FILES['image']) && $_FILES['image']['error'] != UPLOAD_ERR_NO_FILE) {
+        if ($_FILES['image']['error'] != UPLOAD_ERR_OK) {
+            $errors['image'] = 'Erreur lors du téléchargement de l\'image';
+        } else {
+            $imageInfo = getimagesize($_FILES['image']['tmp_name']);
+            if (!$imageInfo) {
+                $errors['image'] = 'Le fichier doit être une image valide';
+            } elseif (!in_array($imageInfo['mime'], ['image/jpeg', 'image/png', 'image/gif', 'image/webp'])) {
+                $errors['image'] = 'Format d\'image non supporté. Utilisez JPG, PNG, GIF ou WebP';
+            } elseif ($_FILES['image']['size'] > 5 * 1024 * 1024) { // 5MB max
+                $errors['image'] = 'L\'image ne doit pas dépasser 5MB';
+            }
+        }
+    }
+    
     if (empty($errors)) {
         try {
+            // Commencer une transaction
+            $pdo->beginTransaction();
+            
+            // Traitement de la nouvelle image si uploadée
+            if (isset($_FILES['image']) && $_FILES['image']['error'] != UPLOAD_ERR_NO_FILE) {
+                $uploadDir = 'uploads/';
+                if (!is_dir($uploadDir)) {
+                    mkdir($uploadDir, 0755, true);
+                }
+                
+                // Créer le nom du fichier : titre_annonce_ID.extension
+                $imageExtension = pathinfo($_FILES['image']['name'], PATHINFO_EXTENSION);
+                $safeTitre = preg_replace('/[^a-zA-Z0-9_-]/', '_', $formData['titre']);
+                $imageName = $safeTitre . '_' . $listing_id . '.' . strtolower($imageExtension);
+                $newImagePath = $uploadDir . $imageName;
+                
+                // Supprimer l'ancienne image si elle existe
+                if (!empty($listing['image_url']) && file_exists($listing['image_url'])) {
+                    unlink($listing['image_url']);
+                }
+                
+                // Déplacer la nouvelle image
+                if (!move_uploaded_file($_FILES['image']['tmp_name'], $newImagePath)) {
+                    throw new Exception("Erreur lors du déplacement de l'image");
+                }
+            }
+            
             // Mettre à jour l'annonce
-            $stmt = $pdo->prepare("
-                UPDATE listing 
-                SET title = ?, description = ?, price = ?, city = ?, image_url = ?, 
-                    property_type_id = ?, transaction_type_id = ?, updated_at = NOW()
-                WHERE id = ?
-            ");
-            $stmt->execute([
-                $formData['titre'],
-                $formData['description'],
-                $formData['prix'],
-                $formData['ville'],
-                $formData['image'],
-                $formData['property_type'],
-                $formData['transaction_type'],
-                $listing_id
-            ]);
+            if ($newImagePath) {
+                $stmt = $pdo->prepare("
+                    UPDATE listing 
+                    SET title = ?, description = ?, price = ?, city = ?, image_url = ?, 
+                        property_type_id = ?, transaction_type_id = ?, updated_at = NOW()
+                    WHERE id = ?
+                ");
+                $stmt->execute([
+                    $formData['titre'],
+                    $formData['description'],
+                    $formData['prix'],
+                    $formData['ville'],
+                    $newImagePath,
+                    $formData['property_type'],
+                    $formData['transaction_type'],
+                    $listing_id
+                ]);
+            } else {
+                $stmt = $pdo->prepare("
+                    UPDATE listing 
+                    SET title = ?, description = ?, price = ?, city = ?, 
+                        property_type_id = ?, transaction_type_id = ?, updated_at = NOW()
+                    WHERE id = ?
+                ");
+                $stmt->execute([
+                    $formData['titre'],
+                    $formData['description'],
+                    $formData['prix'],
+                    $formData['ville'],
+                    $formData['property_type'],
+                    $formData['transaction_type'],
+                    $listing_id
+                ]);
+            }
+            
+            // Valider la transaction
+            $pdo->commit();
             
             $_SESSION['success_message'] = 'Annonce modifiée avec succès !';
             header('Location: ?page=main');
             exit();
             
-        } catch (PDOException $e) {
+        } catch (Exception $e) {
+            // Annuler la transaction en cas d'erreur
+            $pdo->rollBack();
+            
+            // Supprimer la nouvelle image si elle a été déplacée
+            if (isset($newImagePath) && file_exists($newImagePath)) {
+                unlink($newImagePath);
+            }
+            
             $errors['general'] = "Erreur lors de la modification de l'annonce : " . $e->getMessage();
         }
     }
@@ -148,12 +213,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 </div>
             <?php endif; ?>
             
-            <form class="auth-form" method="POST" id="editListingForm" novalidate>
+            <!-- Affichage de l'image  -->
+            <?php if (!empty($listing['image_url']) && file_exists($listing['image_url'])): ?>
+                <div style="background-color: #f8f9fa; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
+                    <h4 style="margin-top: 0;">Image actuelle :</h4>
+                    <img src="<?php echo htmlspecialchars($listing['image_url']); ?>" 
+                         alt="<?php echo htmlspecialchars($listing['title']); ?>" 
+                         style="max-width: 200px; height: auto; border-radius: 5px; border: 1px solid #ddd;">
+                </div>
+            <?php endif; ?>
+            
+            <form class="auth-form" method="POST" id="editListingForm" enctype="multipart/form-data" novalidate>
                 <div class="form-group">
-                    <label for="image" class="form-label">URL de l'image</label>
-                    <input type="url" id="image" name="image" class="form-input <?php echo isset($errors['image']) ? 'error' : ''; ?>" 
-                           value="<?php echo htmlspecialchars($formData['image']); ?>" 
-                           placeholder="https://example.com/image.jpg" required>
+                    <label for="image" class="form-label">Changer l'image (optionnel)</label>
+                    <input type="file" id="image" name="image" class="form-input <?php echo isset($errors['image']) ? 'error' : ''; ?>" 
+                           accept="image/jpeg,image/png,image/gif,image/webp">
+                    <small style="color: #666; font-size: 0.85em;">Formats acceptés : JPG, PNG, GIF, WebP (max 5MB). Laisser vide pour conserver l'image actuelle.</small>
                     <?php if (isset($errors['image'])): ?>
                         <span class="error-message"><?php echo htmlspecialchars($errors['image']); ?></span>
                     <?php else: ?>

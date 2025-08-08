@@ -49,12 +49,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['confirm_delete'])) {
         $stmt = $pdo->prepare("DELETE FROM favorite WHERE listing_id = ?");
         $stmt->execute([$listing_id]);
         
-        // Puis supprimer l'annonce
+        // Supprimer l'annonce
         $stmt = $pdo->prepare("DELETE FROM listing WHERE id = ?");
         $stmt->execute([$listing_id]);
         
         // Valider la transaction
         $pdo->commit();
+        
+        // Supprimer l'image physique si elle existe
+        if (!empty($listing['image_url']) && file_exists($listing['image_url'])) {
+            unlink($listing['image_url']);
+        }
         
         $_SESSION['success_message'] = "Annonce supprimée avec succès";
         header('Location: ?page=main');
@@ -80,9 +85,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['confirm_delete'])) {
             <div style="background-color: #f8f9fa; padding: 20px; border-radius: 8px; margin-bottom: 20px;">
                 <h3 style="margin-top: 0;">Annonce à supprimer :</h3>
                 <div style="display: flex; gap: 15px; align-items: center;">
-                    <img src="<?php echo htmlspecialchars($listing['image_url']); ?>" 
-                         alt="<?php echo htmlspecialchars($listing['title']); ?>" 
-                         style="width: 100px; height: 80px; object-fit: cover; border-radius: 5px;">
+                    <?php if (!empty($listing['image_url']) && file_exists($listing['image_url'])): ?>
+                        <img src="<?php echo htmlspecialchars($listing['image_url']); ?>" 
+                             alt="<?php echo htmlspecialchars($listing['title']); ?>" 
+                             style="width: 100px; height: 80px; object-fit: cover; border-radius: 5px;">
+                    <?php else: ?>
+                        <div style="width: 100px; height: 80px; background-color: #e9ecef; border-radius: 5px; display: flex; align-items: center; justify-content: center; color: #6c757d;">
+                            Pas d'image
+                        </div>
+                    <?php endif; ?>
                     <div>
                         <h4 style="margin: 0 0 5px 0;"><?php echo htmlspecialchars($listing['title']); ?></h4>
                         <p style="margin: 0; color: #666; font-size: 0.9em;">
