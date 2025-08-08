@@ -18,6 +18,9 @@ switch ($page) {
     case 'login':
         include 'includes/login.php';
         break;
+    case 'search':
+        include 'includes/Search.php';
+        break;
     case 'add-listing':
         include 'includes/AddListing.php';
         break;

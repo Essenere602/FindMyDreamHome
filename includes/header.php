@@ -14,6 +14,7 @@
         <div class="logo">FindMyDreamHome</div>
         <ul class="nav-links">
             <li><a href="?page=main">Accueil</a></li>
+            <li><a href="?page=search">Recherche</a></li>
             <li><a href="?page=houses">Maisons</a></li>
             <li><a href="?page=apartments">Appartements</a></li>
             <?php if (isset($_SESSION['user_logged_in']) && $_SESSION['user_logged_in'] === true): ?>
